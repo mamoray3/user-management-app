@@ -1,0 +1,20 @@
+# Terraform variables file
+# Copy this file to terraform.tfvars and fill in the values
+
+aws_region  = "us-east-1"
+environment = "prod"
+project_name = "user-management"
+
+# Optional: Custom domain configuration
+# domain_name = "usermanagement.example.com"
+# acm_certificate_arn = "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/CERTIFICATE_ID"
+
+# NextAuth.js secret (generate with: openssl rand -base64 32)
+nextauth_secret = "your-nextauth-secret-min-32-characters-long"
+
+# AWS Identity Center SAML Configuration
+# Get these values from your AWS Identity Center SAML application configuration
+saml_issuer = "https://your-identity-center.awsapps.com/start"
+saml_entry_point = "https://your-identity-center.awsapps.com/saml/sso/endpoint"
+saml_client_id = "your-saml-client-id"
+saml_client_secret = "your-saml-client-secret"
