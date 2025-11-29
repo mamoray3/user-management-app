@@ -24,7 +24,8 @@ resource "aws_apigatewayv2_authorizer" "jwt" {
   identity_sources                  = ["$request.header.Authorization"]
   name                              = "${var.project_name}-jwt-authorizer"
   authorizer_payload_format_version = "2.0"
-  authorizer_result_ttl_in_seconds  = 300
+  authorizer_result_ttl_in_seconds  = 0
+  enable_simple_responses           = true
 }
 
 # Lambda permission for authorizer

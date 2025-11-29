@@ -10,6 +10,11 @@ async function getUsers(session, filter) {
       ? `${baseUrl}/users?status=${filter}` 
       : `${baseUrl}/users`;
     
+    console.log('API_BASE_URL:', baseUrl);
+    console.log('Fetching URL:', url);
+    console.log('Has accessToken:', !!session.accessToken);
+    console.log('Token preview:', session.accessToken?.substring(0, 50) + '...');
+    
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
@@ -18,8 +23,12 @@ async function getUsers(session, filter) {
       cache: 'no-store',
     });
 
+    console.log('Response status:', response.status);
+    
     if (!response.ok) {
-      throw new Error('Failed to fetch users');
+      const errorText = await response.text();
+      console.error('API error response:', errorText);
+      throw new Error(`Failed to fetch users: ${response.status} - ${errorText}`);
     }
 
     return response.json();

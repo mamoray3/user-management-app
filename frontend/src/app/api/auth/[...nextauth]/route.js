@@ -1,10 +1,37 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import jwt from 'jsonwebtoken';
 
 /**
  * Custom SAML Provider for AWS Identity Center
  * Uses a credentials-based approach where SAML assertion is processed
  */
+
+// Helper to generate a signed JWT for the backend API
+function generateApiToken(user) {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error('NEXTAUTH_SECRET is not set');
+  }
+  
+  const payload = {
+    sub: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role || 'user',
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role || 'user',
+    },
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
+    iss: 'nextauth',
+  };
+  
+  return jwt.sign(payload, secret, { algorithm: 'HS256' });
+}
 
 export const authOptions = {
   providers: [
@@ -60,7 +87,13 @@ export const authOptions = {
         roles: token.roles || [token.role || 'user'],
         groups: token.groups || [],
       };
-      session.accessToken = token.sub;
+      // Generate a proper JWT for the backend API
+      session.accessToken = generateApiToken({
+        id: token.id,
+        email: token.email,
+        name: token.name,
+        role: token.role,
+      });
       return session;
     },
 

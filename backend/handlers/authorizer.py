@@ -100,14 +100,15 @@ def handler(event, context):
         Simple response format for HTTP API v2 with payload format 2.0
     """
     logger.info("Authorizer invoked")
-    logger.debug(f"Event: {event}")
+    logger.info(f"Event: {event}")
     
     token = extract_token(event)
     
     if not token:
         logger.warning("No token provided")
         return {
-            'isAuthorized': False
+            'isAuthorized': False,
+            'principalId': 'anonymous'
         }
     
     decoded = validate_token(token)
@@ -115,7 +116,8 @@ def handler(event, context):
     if not decoded:
         logger.warning("Token validation failed")
         return {
-            'isAuthorized': False
+            'isAuthorized': False,
+            'principalId': 'anonymous'
         }
     
     # Extract user information from token
@@ -133,8 +135,13 @@ def handler(event, context):
     
     logger.info(f"Authorized user: {email} with role: {role}")
     
-    # HTTP API v2 simple response format
-    return {
+    response = {
         'isAuthorized': True,
+        'principalId': user_id,
         'context': auth_context
     }
+    
+    logger.info(f"Authorizer response: {response}")
+    
+    # HTTP API v2 simple response format with principalId
+    return response

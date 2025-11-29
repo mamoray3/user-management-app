@@ -97,7 +97,7 @@ resource "aws_lambda_function" "authorizer" {
   environment {
     variables = {
       NEXTAUTH_SECRET = var.nextauth_secret
-      ALLOWED_ISSUERS = var.saml_issuer
+      ALLOWED_ISSUERS = "nextauth,${var.saml_issuer}"
     }
   }
 

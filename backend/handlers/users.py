@@ -44,6 +44,10 @@ def get_user_from_token(event):
         request_context = event.get('requestContext', {})
         authorizer = request_context.get('authorizer', {})
         
+        # HTTP API v2 with Lambda authorizer puts context under 'lambda' key
+        if 'lambda' in authorizer:
+            authorizer = authorizer.get('lambda', {})
+        
         return {
             'id': authorizer.get('userId', ''),
             'email': authorizer.get('email', ''),
@@ -349,4 +353,7 @@ def health_check():
 @tracer.capture_lambda_handler
 def handler(event: dict, context: LambdaContext):
     """Main Lambda handler."""
-    return app.resolve(event, context)
+    logger.info(f"Received event: {json.dumps(event)}")
+    response = app.resolve(event, context)
+    logger.info(f"Returning response: {json.dumps(response) if isinstance(response, dict) else response}")
+    return response
