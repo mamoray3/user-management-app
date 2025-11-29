@@ -22,6 +22,11 @@ backend/__pycache__/
 backend/*.pyc
 backend/.pytest_cache/
 backend/*.egg-info/
+backend/build/
+backend/lambda_package.zip
+backend/*.zip
+**/__pycache__/
+*.pyc
 
 # IDE
 .idea/
