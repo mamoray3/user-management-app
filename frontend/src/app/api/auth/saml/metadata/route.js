@@ -1,11 +1,23 @@
 import { NextResponse } from 'next/server';
 
+// Force dynamic rendering to ensure environment variables are read at runtime
+export const dynamic = 'force-dynamic';
+
+// Helper to get baseUrl at runtime only (not at build time)
+function getBaseUrl() {
+  const url = process.env.NEXTAUTH_URL;
+  if (!url) {
+    throw new Error('NEXTAUTH_URL environment variable is not set');
+  }
+  return url;
+}
+
 /**
  * SAML Metadata Endpoint
  * Provides SP metadata for AWS Identity Center configuration
  */
 export async function GET() {
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
   const entityId = `${baseUrl}/api/auth/saml/metadata`;
   const acsUrl = `${baseUrl}/api/auth/saml/callback`;
 

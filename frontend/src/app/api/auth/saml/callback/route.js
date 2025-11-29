@@ -57,6 +57,8 @@ export async function POST(request) {
         email: userData.email,
         name: userData.name || userData.email.split('@')[0],
         role: userData.role || 'user',
+        roles: userData.roles || ['user'], // Array of all roles
+        groups: userData.groups || [], // Raw groups from IdP
         sub: userData.id || userData.email,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours

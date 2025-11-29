@@ -57,14 +57,14 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
 
 # Lambda function for API
 resource "aws_lambda_function" "api" {
-  filename         = data.archive_file.lambda_api.output_path
+  filename         = "${path.module}/../backend/lambda_package.zip"
   function_name    = "${var.project_name}-api-${var.environment}"
   role             = aws_iam_role.lambda_execution.arn
   handler          = "handlers.users.handler"
   runtime          = "python3.11"
   timeout          = 30
   memory_size      = 512
-  source_code_hash = data.archive_file.lambda_api.output_base64sha256
+  source_code_hash = filebase64sha256("${path.module}/../backend/lambda_package.zip")
 
   environment {
     variables = {
@@ -85,14 +85,14 @@ resource "aws_lambda_function" "api" {
 
 # Lambda function for Authorizer
 resource "aws_lambda_function" "authorizer" {
-  filename         = data.archive_file.lambda_api.output_path
+  filename         = "${path.module}/../backend/lambda_package.zip"
   function_name    = "${var.project_name}-authorizer-${var.environment}"
   role             = aws_iam_role.lambda_execution.arn
   handler          = "handlers.authorizer.handler"
   runtime          = "python3.11"
   timeout          = 10
   memory_size      = 256
-  source_code_hash = data.archive_file.lambda_api.output_base64sha256
+  source_code_hash = filebase64sha256("${path.module}/../backend/lambda_package.zip")
 
   environment {
     variables = {
@@ -104,14 +104,6 @@ resource "aws_lambda_function" "authorizer" {
   tags = {
     Name = "${var.project_name}-authorizer"
   }
-}
-
-# Archive the Lambda code
-data "archive_file" "lambda_api" {
-  type        = "zip"
-  source_dir  = "${path.module}/../backend"
-  output_path = "${path.module}/lambda_api.zip"
-  excludes    = ["__pycache__", "*.pyc", ".pytest_cache"]
 }
 
 # CloudWatch Log Groups

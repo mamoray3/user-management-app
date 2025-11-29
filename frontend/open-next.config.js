@@ -2,8 +2,8 @@
 const config = {
   default: {
     override: {
-      wrapper: "aws-lambda-streaming",
-      converter: "aws-apigw-v2",
+      wrapper: "aws-lambda",
+      converter: "aws-lambda-url",
     },
   },
   // Configure image optimization

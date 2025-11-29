@@ -13,8 +13,7 @@ project_name = "user-management"
 nextauth_secret = "your-nextauth-secret-min-32-characters-long"
 
 # AWS Identity Center SAML Configuration
-# Get these values from your AWS Identity Center SAML application configuration
-saml_issuer = "https://your-identity-center.awsapps.com/start"
-saml_entry_point = "https://your-identity-center.awsapps.com/saml/sso/endpoint"
-saml_client_id = "your-saml-client-id"
-saml_client_secret = "your-saml-client-secret"
+# Get these values from your AWS Identity Center SAML application metadata
+saml_issuer = "https://portal.sso.us-east-1.amazonaws.com/saml/assertion/YOUR_APP_ID"
+saml_entry_point = "https://portal.sso.us-east-1.amazonaws.com/saml/assertion/YOUR_APP_ID"
+saml_cert = "YOUR_X509_CERTIFICATE_FROM_SAML_METADATA"

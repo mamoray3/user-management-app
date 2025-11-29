@@ -1,6 +1,7 @@
 import { deflateRaw } from 'zlib';
 import { promisify } from 'util';
 import crypto from 'crypto';
+import { mapGroupToRole, mapGroupsToRoles, getHighestRole, ROLES } from './roles';
 
 const deflateRawAsync = promisify(deflateRaw);
 
@@ -104,7 +105,10 @@ export async function parseSAMLAssertion(samlResponse) {
     console.log('Parsing SAML assertion...');
     
     // Extract user data using regex (simple parsing)
-    const userData = {};
+    const userData = {
+      groups: [], // Store all groups
+      roles: [],  // Store mapped roles
+    };
     
     // Extract NameID (email) - AWS Identity Center uses saml2: prefix
     const nameIdPatterns = [
@@ -122,79 +126,74 @@ export async function parseSAMLAssertion(samlResponse) {
       }
     }
     
-    // Extract attributes - AWS Identity Center uses saml2: prefix and various attribute name formats
-    // Handle both saml: and saml2: prefixes
-    const attributePatterns = [
-      // Pattern for saml2:Attribute with saml2:AttributeValue
-      /<(?:saml2?:)?Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<(?:saml2?:)?AttributeValue[^>]*>([^<]*)<\/(?:saml2?:)?AttributeValue>/gi,
-      // Pattern with namespace prefix variations
-      /<Attribute[^>]*Name="([^"]+)"[^>]*>[\s\S]*?<AttributeValue[^>]*>([^<]*)<\/AttributeValue>/gi,
-    ];
+    // Extract ALL attribute values (including multiple values for same attribute)
+    // This handles cases where user belongs to multiple groups
+    const attributePattern = /<(?:saml2?:)?Attribute[^>]*Name="([^"]+)"[^>]*>([\s\S]*?)<\/(?:saml2?:)?Attribute>/gi;
+    const valuePattern = /<(?:saml2?:)?AttributeValue[^>]*>([^<]*)<\/(?:saml2?:)?AttributeValue>/gi;
     
-    for (const attributePattern of attributePatterns) {
-      let match;
-      while ((match = attributePattern.exec(decodedResponse)) !== null) {
-        const attrName = match[1];
-        const attrValue = match[2].trim();
-        
-        console.log(`Found attribute: ${attrName} = ${attrValue}`);
-        
-        // Map AWS Identity Center attribute names (case-insensitive comparison)
-        const attrNameLower = attrName.toLowerCase();
-        
-        // Email mapping
-        if (attrNameLower === 'email' || 
-            attrNameLower.includes('emailaddress') || 
-            attrNameLower.endsWith('/emailaddress') ||
-            attrNameLower.includes('mail')) {
-          userData.email = attrValue;
-        }
-        // First name mapping  
-        else if (attrNameLower === 'firstname' || 
-                 attrNameLower === 'givenname' ||
-                 attrNameLower.endsWith('/givenname') ||
-                 attrNameLower.includes('given_name')) {
-          userData.firstName = attrValue;
-        }
-        // Last name mapping
-        else if (attrNameLower === 'lastname' || 
-                 attrNameLower === 'surname' ||
-                 attrNameLower === 'familyname' ||
-                 attrNameLower.endsWith('/surname') ||
-                 attrNameLower.includes('family_name')) {
-          userData.lastName = attrValue;
-        }
-        // Full name mapping
-        else if ((attrNameLower === 'name' || attrNameLower.endsWith('/name')) && 
-                 !attrNameLower.includes('format') &&
-                 !attrNameLower.includes('first') &&
-                 !attrNameLower.includes('last') &&
-                 !attrNameLower.includes('given') &&
-                 !attrNameLower.includes('family')) {
-          userData.name = attrValue;
-        }
-        // Role/group mapping
-        else if (attrNameLower.includes('role') || attrNameLower.includes('groups')) {
-          // Check for admin role - can be name or group ID
-          const adminGroupIds = (process.env.SAML_ADMIN_GROUP_ID || '').split(',').map(id => id.trim());
-          
-          const valueLower = attrValue.toLowerCase();
-          
-          // Check if value matches admin keywords or configured group IDs
-          if (valueLower.includes('admin') || 
-              valueLower.includes('data_owner') || 
-              valueLower.includes('dataowner') ||
-              adminGroupIds.includes(attrValue)) {
-            userData.role = 'admin';
-          } else {
-            userData.role = 'user';
-          }
-          
-          // Store the raw group value for debugging
-          userData.rawGroup = attrValue;
-          console.log(`Role mapping: ${attrValue} -> ${userData.role}`);
+    let attrMatch;
+    while ((attrMatch = attributePattern.exec(decodedResponse)) !== null) {
+      const attrName = attrMatch[1];
+      const attrContent = attrMatch[2];
+      const attrNameLower = attrName.toLowerCase();
+      
+      // Extract all values for this attribute
+      const values = [];
+      let valueMatch;
+      const valueRegex = /<(?:saml2?:)?AttributeValue[^>]*>([^<]*)<\/(?:saml2?:)?AttributeValue>/gi;
+      while ((valueMatch = valueRegex.exec(attrContent)) !== null) {
+        const value = valueMatch[1].trim();
+        if (value) {
+          values.push(value);
+          console.log(`Found attribute: ${attrName} = ${value}`);
         }
       }
+      
+      // Map attributes to user data
+      if (attrNameLower === 'email' || 
+          attrNameLower.includes('emailaddress') || 
+          attrNameLower.endsWith('/emailaddress') ||
+          attrNameLower.includes('mail')) {
+        userData.email = values[0];
+      }
+      else if (attrNameLower === 'firstname' || 
+               attrNameLower === 'givenname' ||
+               attrNameLower.endsWith('/givenname') ||
+               attrNameLower.includes('given_name')) {
+        userData.firstName = values[0];
+      }
+      else if (attrNameLower === 'lastname' || 
+               attrNameLower === 'surname' ||
+               attrNameLower === 'familyname' ||
+               attrNameLower.endsWith('/surname') ||
+               attrNameLower.includes('family_name')) {
+        userData.lastName = values[0];
+      }
+      else if ((attrNameLower === 'name' || attrNameLower.endsWith('/name')) && 
+               !attrNameLower.includes('format') &&
+               !attrNameLower.includes('first') &&
+               !attrNameLower.includes('last') &&
+               !attrNameLower.includes('given') &&
+               !attrNameLower.includes('family')) {
+        userData.name = values[0];
+      }
+      // Role/group mapping - collect ALL groups
+      else if (attrNameLower.includes('role') || attrNameLower.includes('groups') || attrNameLower.includes('group')) {
+        // Add all group values
+        userData.groups.push(...values);
+      }
+    }
+    
+    // Map groups to application roles
+    if (userData.groups.length > 0) {
+      userData.roles = mapGroupsToRoles(userData.groups);
+      userData.role = getHighestRole(userData.roles);
+      console.log('Groups found:', userData.groups);
+      console.log('Mapped roles:', userData.roles);
+      console.log('Primary role:', userData.role);
+    } else {
+      userData.roles = [ROLES.USER];
+      userData.role = ROLES.USER;
     }
     
     // Also try to extract Subject from the response (some IdPs use this)
@@ -215,11 +214,6 @@ export async function parseSAMLAssertion(samlResponse) {
     // Default name to email prefix if not present
     if (!userData.name && userData.email) {
       userData.name = userData.email.split('@')[0];
-    }
-    
-    // Default role to user
-    if (!userData.role) {
-      userData.role = 'user';
     }
     
     // Set ID from email if not set

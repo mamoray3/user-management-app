@@ -45,7 +45,7 @@ resource "aws_cloudfront_cache_policy" "ssr" {
     headers_config {
       header_behavior = "whitelist"
       headers {
-        items = ["Authorization", "Host", "Accept"]
+        items = ["Authorization", "Accept"]
       }
     }
     query_strings_config {
@@ -65,7 +65,10 @@ resource "aws_cloudfront_origin_request_policy" "ssr" {
     cookie_behavior = "all"
   }
   headers_config {
-    header_behavior = "allViewer"
+    header_behavior = "allExcept"
+    headers {
+      items = ["Host"]
+    }
   }
   query_strings_config {
     query_string_behavior = "all"
@@ -85,18 +88,22 @@ resource "aws_lambda_function" "server" {
 
   environment {
     variables = {
-      NEXTAUTH_URL       = var.domain_name != "" ? "https://${var.domain_name}" : "https://${aws_cloudfront_distribution.frontend.domain_name}"
-      NEXTAUTH_SECRET    = var.nextauth_secret
-      API_BASE_URL       = aws_apigatewayv2_stage.api.invoke_url
-      SAML_ISSUER        = var.saml_issuer
-      SAML_ENTRY_POINT   = var.saml_entry_point
-      SAML_CLIENT_ID     = var.saml_client_id
-      SAML_CLIENT_SECRET = var.saml_client_secret
+      # NEXTAUTH_URL will be set after CloudFront is created via deploy script or manual update
+      NEXTAUTH_URL     = var.domain_name != "" ? "https://${var.domain_name}" : "https://placeholder.cloudfront.net"
+      NEXTAUTH_SECRET  = var.nextauth_secret
+      API_BASE_URL     = aws_apigatewayv2_stage.api.invoke_url
+      SAML_ISSUER      = var.saml_issuer
+      SAML_ENTRY_POINT = var.saml_entry_point
+      SAML_CERT        = var.saml_cert
     }
   }
 
   tags = {
     Name = "${var.project_name}-server"
+  }
+
+  lifecycle {
+    ignore_changes = [environment[0].variables["NEXTAUTH_URL"]]
   }
 }
 
@@ -129,6 +136,21 @@ data "archive_file" "lambda_server" {
 resource "aws_cloudwatch_log_group" "server" {
   name              = "/aws/lambda/${aws_lambda_function.server.function_name}"
   retention_in_days = 30
+}
+
+# CloudFront Function to add x-forwarded-host header
+resource "aws_cloudfront_function" "add_host_header" {
+  name    = "${var.project_name}-add-host-${var.environment}"
+  runtime = "cloudfront-js-2.0"
+  comment = "Add x-forwarded-host header for SSR"
+  publish = true
+  code    = <<-EOF
+function handler(event) {
+  var request = event.request;
+  request.headers['x-forwarded-host'] = {value: request.headers.host.value};
+  return request;
+}
+EOF
 }
 
 # CloudFront Distribution
@@ -170,6 +192,11 @@ resource "aws_cloudfront_distribution" "frontend" {
     compress                 = true
     cache_policy_id          = aws_cloudfront_cache_policy.ssr.id
     origin_request_policy_id = aws_cloudfront_origin_request_policy.ssr.id
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.add_host_header.arn
+    }
   }
 
   # Cache behavior for static assets
@@ -221,5 +248,25 @@ resource "aws_cloudfront_distribution" "frontend" {
 
   tags = {
     Name = "${var.project_name}-distribution"
+  }
+}
+
+# Update Lambda NEXTAUTH_URL after CloudFront is created (breaks the cycle)
+resource "null_resource" "update_lambda_env" {
+  depends_on = [aws_cloudfront_distribution.frontend, aws_lambda_function.server]
+
+  triggers = {
+    cloudfront_domain = aws_cloudfront_distribution.frontend.domain_name
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      if [ "${var.domain_name}" = "" ]; then
+        aws lambda update-function-configuration \
+          --function-name ${aws_lambda_function.server.function_name} \
+          --environment "Variables={NEXTAUTH_URL=https://${aws_cloudfront_distribution.frontend.domain_name},NEXTAUTH_SECRET=${var.nextauth_secret},API_BASE_URL=${aws_apigatewayv2_stage.api.invoke_url},SAML_ISSUER=${var.saml_issuer},SAML_ENTRY_POINT=${var.saml_entry_point},SAML_CERT=${var.saml_cert}}" \
+          --region ${var.aws_region}
+      fi
+    EOT
   }
 }

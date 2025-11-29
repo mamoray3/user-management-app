@@ -12,14 +12,12 @@ terraform {
     }
   }
 
-  # Configure your backend here
-  # backend "s3" {
-  #   bucket         = "your-terraform-state-bucket"
-  #   key            = "user-management-app/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   dynamodb_table = "terraform-locks"
-  #   encrypt        = true
-  # }
+  backend "s3" {
+    bucket  = "tf-state-540150371887"
+    key     = "user-management/dev/terraform.tfstate"
+    region  = "us-east-1"
+    encrypt = true
+  }
 }
 
 provider "aws" {

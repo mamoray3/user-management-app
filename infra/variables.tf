@@ -13,7 +13,7 @@ variable "project_name" {
 variable "environment" {
   description = "Environment (dev, staging, prod)"
   type        = string
-  default     = "prod"
+  default     = "dev"
 }
 
 variable "domain_name" {
@@ -44,13 +44,8 @@ variable "saml_entry_point" {
   type        = string
 }
 
-variable "saml_client_id" {
-  description = "SAML Client ID from AWS Identity Center"
-  type        = string
-}
-
-variable "saml_client_secret" {
-  description = "SAML Client Secret from AWS Identity Center"
+variable "saml_cert" {
+  description = "X509 Certificate from AWS Identity Center SAML metadata"
   type        = string
   sensitive   = true
 }

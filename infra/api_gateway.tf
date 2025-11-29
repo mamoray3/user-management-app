@@ -4,7 +4,7 @@ resource "aws_apigatewayv2_api" "api" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_credentials = true
+    allow_credentials = var.domain_name != "" ? true : false
     allow_headers     = ["Content-Type", "Authorization", "X-Amz-Date", "X-Api-Key"]
     allow_methods     = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     allow_origins     = var.domain_name != "" ? ["https://${var.domain_name}"] : ["*"]

@@ -49,26 +49,47 @@ fi
 
 # Package and update Lambda function
 echo -e "${YELLOW}Packaging Lambda function...${NC}"
-cd .open-next/server-function
-zip -r ../../lambda-server.zip . -x "*.git*"
+cd .open-next/server-functions/default
+
+# Remove .env file to prevent it from overriding Lambda environment variables
+# Next.js reads .env files before environment variables, so bundled .env would override Lambda config
+if [ -f ".env" ]; then
+    echo -e "${YELLOW}Removing bundled .env file (Lambda env vars will be used instead)...${NC}"
+    rm -f .env
+fi
+
+zip -r ../../../lambda-server.zip . -x "*.git*" -x "*.DS_Store"
 cd "$FRONTEND_DIR"
 
 echo -e "${YELLOW}Updating Lambda function...${NC}"
 aws lambda update-function-code \
-    --function-name "$LAMBDA_FUNCTION" \
+    --function-name "user-management-server-dev" \
     --zip-file fileb://lambda-server.zip \
-    --publish
+    --publish \
+    --no-cli-pager > /dev/null
 
-# Wait for Lambda update to complete
+# Wait for Lambda update to complete (with timeout)
 echo -e "${YELLOW}Waiting for Lambda update to complete...${NC}"
-aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION"
+for i in {1..30}; do
+    STATUS=$(aws lambda get-function --function-name "user-management-server-dev" --query 'Configuration.LastUpdateStatus' --output text --no-cli-pager 2>/dev/null)
+    if [ "$STATUS" = "Successful" ]; then
+        echo -e "${GREEN}Lambda update completed.${NC}"
+        break
+    elif [ "$STATUS" = "Failed" ]; then
+        echo -e "${RED}Lambda update failed.${NC}"
+        exit 1
+    fi
+    sleep 2
+done
 
 # Invalidate CloudFront cache
 if [ -n "$CLOUDFRONT_ID" ]; then
     echo -e "${YELLOW}Invalidating CloudFront cache...${NC}"
     aws cloudfront create-invalidation \
         --distribution-id "$CLOUDFRONT_ID" \
-        --paths "/*"
+        --paths "/*" \
+        --no-cli-pager > /dev/null
+    echo -e "${GREEN}CloudFront invalidation started.${NC}"
 fi
 
 # Cleanup

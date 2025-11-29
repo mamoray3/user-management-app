@@ -23,6 +23,8 @@ export const authOptions = {
               email: user.email || user.nameId,
               name: user.name || user.firstName + ' ' + user.lastName || user.email,
               role: user.role || 'user',
+              roles: user.roles || ['user'],
+              groups: user.groups || [],
             };
           } catch (error) {
             console.error('Error parsing SAML user:', error);
@@ -42,6 +44,8 @@ export const authOptions = {
         token.email = user.email;
         token.name = user.name;
         token.role = user.role || 'user';
+        token.roles = user.roles || ['user'];
+        token.groups = user.groups || [];
       }
       return token;
     },
@@ -53,8 +57,10 @@ export const authOptions = {
         email: token.email,
         name: token.name,
         role: token.role,
+        roles: token.roles || [token.role || 'user'],
+        groups: token.groups || [],
       };
-      session.accessToken = token.sub; // Use sub as a simple token
+      session.accessToken = token.sub;
       return session;
     },
 
