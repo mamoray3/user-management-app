@@ -22,7 +22,24 @@ export async function POST(request) {
 
     // Log the raw SAML response for debugging
     const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf8');
-    console.log('SAML Response (decoded, first 2000 chars):', decodedResponse.substring(0, 2000));
+    console.log('=== FULL SAML RESPONSE START ===');
+    console.log('SAML Response length:', decodedResponse.length);
+    // Log in chunks to avoid truncation
+    const chunkSize = 4000;
+    for (let i = 0; i < decodedResponse.length; i += chunkSize) {
+      console.log(`SAML Response chunk ${Math.floor(i/chunkSize) + 1}:`, decodedResponse.substring(i, i + chunkSize));
+    }
+    console.log('=== FULL SAML RESPONSE END ===');
+    
+    // Also extract and log just the AttributeStatement section
+    const attrStatementMatch = decodedResponse.match(/<(?:saml2?:)?AttributeStatement[^>]*>([\s\S]*?)<\/(?:saml2?:)?AttributeStatement>/i);
+    if (attrStatementMatch) {
+      console.log('=== ATTRIBUTE STATEMENT ===');
+      console.log(attrStatementMatch[0]);
+      console.log('=== END ATTRIBUTE STATEMENT ===');
+    } else {
+      console.log('WARNING: No AttributeStatement found in SAML response!');
+    }
 
     // Validate the SAML response
     const isValid = await validateSAMLResponse(samlResponse);

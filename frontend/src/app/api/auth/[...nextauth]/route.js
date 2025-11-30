@@ -46,12 +46,14 @@ export const authOptions = {
           try {
             const user = JSON.parse(credentials.samlUser);
             return {
-              id: user.id || user.nameId,
+              id: user.userId || user.userguid || user.id || user.nameId,
               email: user.email || user.nameId,
               name: user.name || user.firstName + ' ' + user.lastName || user.email,
               role: user.role || 'user',
               roles: user.roles || ['user'],
               groups: user.groups || [],
+              userId: user.userId || user.userguid || user.id || user.nameId,
+              userguid: user.userguid || user.userId || null,
             };
           } catch (error) {
             console.error('Error parsing SAML user:', error);
@@ -68,6 +70,8 @@ export const authOptions = {
       // Initial sign in - add user data to token
       if (user) {
         token.id = user.id;
+        token.userId = user.userId;
+        token.userguid = user.userguid;
         token.email = user.email;
         token.name = user.name;
         token.role = user.role || 'user';
@@ -81,6 +85,8 @@ export const authOptions = {
       // Add user data to session
       session.user = {
         id: token.id,
+        userId: token.userId,
+        userguid: token.userguid,
         email: token.email,
         name: token.name,
         role: token.role,

@@ -102,12 +102,22 @@ export async function parseSAMLAssertion(samlResponse) {
     // Decode the SAML response
     const decodedResponse = Buffer.from(samlResponse, 'base64').toString('utf8');
     
-    console.log('Parsing SAML assertion...');
+    console.log('=== SAML PARSING DEBUG START ===');
+    console.log('SAML Response length:', decodedResponse.length);
+    
+    // Log all Attribute elements found for debugging
+    const allAttributesDebug = decodedResponse.match(/<(?:saml2?:)?Attribute[^>]*>/gi) || [];
+    console.log('All Attribute tags found:', allAttributesDebug.length);
+    allAttributesDebug.forEach((attr, i) => {
+      console.log(`  Attribute ${i + 1}: ${attr}`);
+    });
     
     // Extract user data using regex (simple parsing)
     const userData = {
       groups: [], // Store all groups
       roles: [],  // Store mapped roles
+      userId: null, // User ID from Identity Center
+      userguid: null, // User GUID from Identity Center
     };
     
     // Extract NameID (email) - AWS Identity Center uses saml2: prefix
@@ -132,10 +142,15 @@ export async function parseSAMLAssertion(samlResponse) {
     const valuePattern = /<(?:saml2?:)?AttributeValue[^>]*>([^<]*)<\/(?:saml2?:)?AttributeValue>/gi;
     
     let attrMatch;
+    let attributeCount = 0;
     while ((attrMatch = attributePattern.exec(decodedResponse)) !== null) {
+      attributeCount++;
       const attrName = attrMatch[1];
       const attrContent = attrMatch[2];
       const attrNameLower = attrName.toLowerCase();
+      
+      console.log(`Processing attribute ${attributeCount}: "${attrName}" (lowercase: "${attrNameLower}")`);
+      console.log(`  Attribute content preview: ${attrContent.substring(0, 200)}...`);
       
       // Extract all values for this attribute
       const values = [];
@@ -145,9 +160,16 @@ export async function parseSAMLAssertion(samlResponse) {
         const value = valueMatch[1].trim();
         if (value) {
           values.push(value);
-          console.log(`Found attribute: ${attrName} = ${value}`);
+          console.log(`  Found value: "${value}"`);
         }
       }
+      
+      console.log(`  Total values for "${attrName}": ${values.length} -> [${values.join(', ')}]`);
+      
+      // Check if this looks like a role/group attribute
+      const isRoleAttr = attrNameLower === 'role' || attrNameLower.includes('role');
+      const isGroupAttr = attrNameLower.includes('group');
+      console.log(`  Is role attr: ${isRoleAttr}, Is group attr: ${isGroupAttr}`);
       
       // Map attributes to user data
       if (attrNameLower === 'email' || 
@@ -155,12 +177,14 @@ export async function parseSAMLAssertion(samlResponse) {
           attrNameLower.endsWith('/emailaddress') ||
           attrNameLower.includes('mail')) {
         userData.email = values[0];
+        console.log(`  -> Mapped to email: ${values[0]}`);
       }
       else if (attrNameLower === 'firstname' || 
                attrNameLower === 'givenname' ||
                attrNameLower.endsWith('/givenname') ||
                attrNameLower.includes('given_name')) {
         userData.firstName = values[0];
+        console.log(`  -> Mapped to firstName: ${values[0]}`);
       }
       else if (attrNameLower === 'lastname' || 
                attrNameLower === 'surname' ||
@@ -168,6 +192,7 @@ export async function parseSAMLAssertion(samlResponse) {
                attrNameLower.endsWith('/surname') ||
                attrNameLower.includes('family_name')) {
         userData.lastName = values[0];
+        console.log(`  -> Mapped to lastName: ${values[0]}`);
       }
       else if ((attrNameLower === 'name' || attrNameLower.endsWith('/name')) && 
                !attrNameLower.includes('format') &&
@@ -176,22 +201,46 @@ export async function parseSAMLAssertion(samlResponse) {
                !attrNameLower.includes('given') &&
                !attrNameLower.includes('family')) {
         userData.name = values[0];
+        console.log(`  -> Mapped to name: ${values[0]}`);
+      }
+      // User ID mapping - covers various naming conventions from AWS Identity Center
+      else if (attrNameLower === 'userid' || 
+               attrNameLower === 'user_id' ||
+               attrNameLower === 'userguid' ||
+               attrNameLower === 'user_guid' ||
+               attrNameLower === 'ad_guid' ||
+               attrNameLower === 'adguid' ||
+               attrNameLower.endsWith('/userid') ||
+               attrNameLower.endsWith('/userguid') ||
+               attrNameLower.endsWith('/ad_guid') ||
+               attrNameLower.includes('subject') ||
+               attrNameLower === 'sub') {
+        userData.userId = values[0];
+        userData.userguid = values[0];
+        console.log(`  -> Mapped to userId/userguid: ${values[0]}`);
       }
       // Role/group mapping - collect ALL groups
-      else if (attrNameLower.includes('role') || attrNameLower.includes('groups') || attrNameLower.includes('group')) {
+      else if (attrNameLower === 'role' || attrNameLower.includes('role') || attrNameLower.includes('groups') || attrNameLower.includes('group')) {
         // Add all group values
         userData.groups.push(...values);
+        console.log(`  -> Added to groups: [${values.join(', ')}]`);
+      }
+      else {
+        console.log(`  -> Not mapped (unrecognized attribute)`);
       }
     }
+    
+    console.log(`Total attributes processed: ${attributeCount}`);
+    console.log(`Groups collected: [${userData.groups.join(', ')}]`);
     
     // Map groups to application roles
     if (userData.groups.length > 0) {
       userData.roles = mapGroupsToRoles(userData.groups);
       userData.role = getHighestRole(userData.roles);
-      console.log('Groups found:', userData.groups);
       console.log('Mapped roles:', userData.roles);
-      console.log('Primary role:', userData.role);
+      console.log('Primary role (highest):', userData.role);
     } else {
+      console.log('WARNING: No groups found! Defaulting to USER role');
       userData.roles = [ROLES.USER];
       userData.role = ROLES.USER;
     }
@@ -216,12 +265,17 @@ export async function parseSAMLAssertion(samlResponse) {
       userData.name = userData.email.split('@')[0];
     }
     
-    // Set ID from email if not set
-    if (!userData.id && userData.email) {
+    // Set ID from userId if available, otherwise from email
+    if (userData.userId) {
+      userData.id = userData.userId;
+      console.log('Using userId as id:', userData.id);
+    } else if (!userData.id && userData.email) {
       userData.id = userData.email;
+      console.log('Using email as id:', userData.id);
     }
     
-    console.log('Final parsed userData:', userData);
+    console.log('=== SAML PARSING DEBUG END ===');
+    console.log('Final parsed userData:', JSON.stringify(userData, null, 2));
     
     return userData;
   } catch (error) {
