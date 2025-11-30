@@ -95,6 +95,11 @@ resource "aws_lambda_function" "server" {
       SAML_ISSUER      = var.saml_issuer
       SAML_ENTRY_POINT = var.saml_entry_point
       SAML_CERT        = var.saml_cert
+      # Role Mapping - AWS Identity Center Group IDs
+      ROLE_MAPPING_ADMIN         = var.role_mapping_admin
+      ROLE_MAPPING_DATA_OWNER    = var.role_mapping_data_owner
+      ROLE_MAPPING_PROCESS_OWNER = var.role_mapping_process_owner
+      ROLE_MAPPING_VIEWER        = var.role_mapping_viewer
     }
   }
 

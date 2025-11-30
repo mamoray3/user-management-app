@@ -49,3 +49,28 @@ variable "saml_cert" {
   type        = string
   sensitive   = true
 }
+
+# Role Mapping - AWS Identity Center Group IDs
+variable "role_mapping_admin" {
+  description = "AWS Identity Center Group ID(s) for Admin role (comma-separated)"
+  type        = string
+  default     = ""
+}
+
+variable "role_mapping_data_owner" {
+  description = "AWS Identity Center Group ID(s) for Data Owner role (comma-separated)"
+  type        = string
+  default     = ""
+}
+
+variable "role_mapping_process_owner" {
+  description = "AWS Identity Center Group ID(s) for Process Owner role (comma-separated)"
+  type        = string
+  default     = ""
+}
+
+variable "role_mapping_viewer" {
+  description = "AWS Identity Center Group ID(s) for Viewer role (comma-separated)"
+  type        = string
+  default     = ""
+}
