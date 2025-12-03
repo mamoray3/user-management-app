@@ -1,0 +1,20 @@
+# Core Infrastructure Variables
+# Copy this file to terraform.tfvars and fill in the values
+
+aws_region   = "us-east-1"
+environment  = "dev"
+project_name = "user-management"
+
+# AWS Identity Center SAML Metadata URL for Cognito federation
+# Format: https://portal.sso.{region}.amazonaws.com/saml/metadata/{application_id}
+idc_saml_metadata_url = "https://portal.sso.us-east-1.amazonaws.com/saml/metadata/MjYxNDQ3MTk3NzQxX2lucy03MjIzMzBjYmI1Y2IwMWY3"
+
+# IDC OIDC Issuer URL from your Identity Center instance
+# Format: https://identitycenter.amazonaws.com/ssoins-xxxxxxxxxx
+idc_oidc_issuer_url = "https://identitycenter.amazonaws.com/ssoins-7223cb5151a8dfaa"
+
+# Optional: Group to role mappings
+# role_mapping_admin = "Admins"
+# role_mapping_data_owner = "DataOwners"
+# role_mapping_process_owner = "ProcessOwners"
+# role_mapping_viewer = "Viewers"

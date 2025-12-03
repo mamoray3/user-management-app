@@ -19,7 +19,7 @@ export async function GET(request) {
     
     const response = await fetch(`${API_BASE_URL}/users${queryString}`, {
       headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
+        'Authorization': `Bearer ${session.apiToken}`,
         'Content-Type': 'application/json',
       },
     });
@@ -56,7 +56,7 @@ export async function POST(request) {
     const response = await fetch(`${API_BASE_URL}/users`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
+        'Authorization': `Bearer ${session.apiToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

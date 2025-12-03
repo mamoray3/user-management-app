@@ -19,7 +19,7 @@ export async function POST(request, { params }) {
     const response = await fetch(`${API_BASE_URL}/users/${params.id}/approve`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
+        'Authorization': `Bearer ${session.apiToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

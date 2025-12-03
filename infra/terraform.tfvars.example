@@ -1,8 +1,8 @@
 # Terraform variables file
 # Copy this file to terraform.tfvars and fill in the values
 
-aws_region  = "us-east-1"
-environment = "prod"
+aws_region   = "us-east-1"
+environment  = "prod"
 project_name = "user-management"
 
 # Optional: Custom domain configuration
@@ -12,8 +12,53 @@ project_name = "user-management"
 # NextAuth.js secret (generate with: openssl rand -base64 32)
 nextauth_secret = "your-nextauth-secret-min-32-characters-long"
 
-# AWS Identity Center SAML Configuration
-# Get these values from your AWS Identity Center SAML application metadata
-saml_issuer = "https://portal.sso.us-east-1.amazonaws.com/saml/assertion/YOUR_APP_ID"
-saml_entry_point = "https://portal.sso.us-east-1.amazonaws.com/saml/assertion/YOUR_APP_ID"
-saml_cert = "YOUR_X509_CERTIFICATE_FROM_SAML_METADATA"
+# =============================================================================
+# Cognito + IDC SAML Federation Configuration
+# =============================================================================
+# To federate Cognito with AWS Identity Center:
+# 1. Deploy Terraform first without idc_saml_metadata_url
+# 2. Note the cognito_saml_acs_url and cognito_saml_entity_id outputs
+# 3. Create SAML application in AWS Identity Center with these values
+# 4. Get the metadata URL from IDC and set it here
+# 5. Re-run terraform apply
+
+# AWS Identity Center SAML Metadata URL for Cognito federation
+# Format: https://portal.sso.{region}.amazonaws.com/saml/metadata/{application_id}
+# idc_saml_metadata_url = "https://portal.sso.us-east-1.amazonaws.com/saml/metadata/YOUR_APP_ID"
+
+# =============================================================================
+# S3 Access Grants Configuration
+# =============================================================================
+
+# AWS Identity Center ARN for directory-based S3 Access Grants
+# Find this in AWS Identity Center > Settings > Identity source > ARN
+# Format: arn:aws:sso:::instance/ssoins-xxxxxxxxxx
+# identity_center_arn = "arn:aws:sso:::instance/ssoins-xxxxxxxxxx"
+
+# =============================================================================
+# IDC OIDC Token Exchange Configuration
+# =============================================================================
+# This enables direct AWS credential exchange using IDC OIDC tokens
+# This preserves IDC identity through to S3 Access Grants (DIRECTORY_USER grants work!)
+
+# IDC OIDC Issuer URL from your Identity Center instance
+# Find in: AWS Identity Center > Applications > Your App > Configuration > Issuer URL
+# Format: https://[region].awsapps.com/start/oidc
+# idc_oidc_issuer_url = "https://us-east-1.awsapps.com/start/oidc"
+
+# Optional: IDC OIDC Client ID (if different from issuer URL)
+# idc_oidc_client_id = ""
+
+# Optional: SSL certificate thumbprint (leave empty for AWS-managed certificates)
+# idc_oidc_thumbprint = ""
+
+# Create example grants for testing
+# create_example_user_grant = true
+# example_idc_user_id = "3448e4c8-70b1-7069-c7f1-e42f103a6ab5"  # IDC User ID
+
+# Admin group grant (full bucket access)
+# create_admin_grant = true
+# admin_idc_group_id = "your-admin-group-id"  # IDC Group ID
+
+# Shared folder read access for all authenticated users
+# create_shared_grant = true

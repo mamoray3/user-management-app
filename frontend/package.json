@@ -10,6 +10,11 @@
     "build:open-next": "npx open-next build"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity": "^3.682.0",
+    "@aws-sdk/client-s3": "^3.682.0",
+    "@aws-sdk/client-s3-control": "^3.682.0",
+    "@aws-sdk/client-sts": "^3.940.0",
+    "@aws-sdk/s3-request-presigner": "^3.682.0",
     "jsonwebtoken": "^9.0.2",
     "next": "14.2.15",
     "next-auth": "^4.24.8",

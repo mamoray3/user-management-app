@@ -16,15 +16,15 @@ INFRA_DIR="$(dirname "$FRONTEND_DIR")/infra"
 command -v aws >/dev/null 2>&1 || { echo -e "${RED}AWS CLI is required but not installed.${NC}" >&2; exit 1; }
 command -v terraform >/dev/null 2>&1 || { echo -e "${RED}Terraform is required but not installed.${NC}" >&2; exit 1; }
 
-# Get Terraform outputs
-cd "$INFRA_DIR"
+# Get Terraform outputs from app infrastructure
+cd "$INFRA_DIR/app"
 
 echo -e "${YELLOW}Getting Terraform outputs...${NC}"
 S3_BUCKET=$(terraform output -raw s3_bucket_name 2>/dev/null || echo "")
-LAMBDA_FUNCTION=$(terraform output -raw lambda_function_name 2>/dev/null || echo "")
+LAMBDA_SERVER_FUNCTION=$(terraform output -raw lambda_server_function_name 2>/dev/null || echo "")
 CLOUDFRONT_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null || echo "")
 
-if [ -z "$S3_BUCKET" ] || [ -z "$LAMBDA_FUNCTION" ]; then
+if [ -z "$S3_BUCKET" ] || [ -z "$LAMBDA_SERVER_FUNCTION" ]; then
     echo -e "${RED}Error: Could not get Terraform outputs. Make sure infrastructure is deployed.${NC}"
     exit 1
 fi
@@ -63,7 +63,7 @@ cd "$FRONTEND_DIR"
 
 echo -e "${YELLOW}Updating Lambda function...${NC}"
 aws lambda update-function-code \
-    --function-name "user-management-server-dev" \
+    --function-name "$LAMBDA_SERVER_FUNCTION" \
     --zip-file fileb://lambda-server.zip \
     --publish \
     --no-cli-pager > /dev/null
@@ -71,7 +71,7 @@ aws lambda update-function-code \
 # Wait for Lambda update to complete (with timeout)
 echo -e "${YELLOW}Waiting for Lambda update to complete...${NC}"
 for i in {1..30}; do
-    STATUS=$(aws lambda get-function --function-name "user-management-server-dev" --query 'Configuration.LastUpdateStatus' --output text --no-cli-pager 2>/dev/null)
+    STATUS=$(aws lambda get-function --function-name "$LAMBDA_SERVER_FUNCTION" --query 'Configuration.LastUpdateStatus' --output text --no-cli-pager 2>/dev/null)
     if [ "$STATUS" = "Successful" ]; then
         echo -e "${GREEN}Lambda update completed.${NC}"
         break
@@ -98,7 +98,7 @@ rm -f lambda-server.zip
 echo -e "${GREEN}Deployment completed successfully!${NC}"
 
 # Print the URL
-CLOUDFRONT_URL=$(terraform -chdir="$INFRA_DIR" output -raw frontend_url 2>/dev/null || echo "")
+CLOUDFRONT_URL=$(terraform -chdir="$INFRA_DIR/app" output -raw frontend_url 2>/dev/null || echo "")
 if [ -n "$CLOUDFRONT_URL" ]; then
     echo -e "${GREEN}Application URL: ${CLOUDFRONT_URL}${NC}"
 fi

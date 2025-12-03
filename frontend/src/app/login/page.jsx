@@ -1,6 +1,6 @@
 'use client';
 
-import { getSession } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -27,23 +27,21 @@ function LoginContent() {
     const errorParam = searchParams.get('error');
     if (errorParam) {
       switch (errorParam) {
-        case 'SAMLError':
-          setError('There was a problem initiating SSO login. Please try again.');
+        case 'OAuthSignin':
+        case 'OAuthCallback':
+          setError('There was a problem with the authentication. Please try again.');
           break;
-        case 'NoSAMLResponse':
-          setError('No authentication response received. Please try again.');
+        case 'OAuthCreateAccount':
+          setError('Could not create account. Please contact support.');
           break;
-        case 'InvalidSAMLResponse':
-          setError('Invalid authentication response. Please contact support.');
-          break;
-        case 'NoUserData':
-          setError('Could not retrieve user information. Please contact support.');
-          break;
-        case 'SAMLCallbackError':
+        case 'Callback':
           setError('Authentication callback failed. Please try again.');
           break;
         case 'AccessDenied':
           setError('Access denied. You do not have permission to access this application.');
+          break;
+        case 'Configuration':
+          setError('Server configuration error. Please contact support.');
           break;
         default:
           setError('An authentication error occurred. Please try again.');
@@ -51,13 +49,22 @@ function LoginContent() {
     }
   }, [searchParams]);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setIsLoading(true);
     setError('');
     
-    // Redirect to SAML login endpoint
-    const loginUrl = `/api/auth/saml/login?callbackUrl=${encodeURIComponent(callbackUrl)}`;
-    window.location.href = loginUrl;
+    try {
+      // Use NextAuth signIn with Cognito provider
+      // redirect: true ensures the browser follows the OAuth redirect
+      await signIn('cognito', { 
+        callbackUrl,
+        redirect: true,
+      });
+    } catch (err) {
+      console.error('Sign in error:', err);
+      setError('Failed to initiate sign in. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -128,7 +135,7 @@ function LoginContent() {
         </button>
 
         <p className="mt-6 text-center text-xs text-gray-500">
-          This application uses AWS Identity Center for authentication.
+          This application uses AWS Cognito with Identity Center for authentication.
           <br />
           Contact your administrator if you need access.
         </p>

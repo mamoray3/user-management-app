@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 // Paths that don't require authentication
-const publicPaths = ['/login', '/api/auth', '/api/health'];
+const publicPaths = ['/login', '/api/auth', '/api/health', '/api/test-saml'];
 
 // Page permission requirements
 const PAGE_PERMISSIONS = {

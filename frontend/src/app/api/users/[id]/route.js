@@ -14,7 +14,7 @@ export async function GET(request, { params }) {
   try {
     const response = await fetch(`${API_BASE_URL}/users/${params.id}`, {
       headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
+        'Authorization': `Bearer ${session.apiToken}`,
         'Content-Type': 'application/json',
       },
     });
@@ -55,7 +55,7 @@ export async function PUT(request, { params }) {
     const response = await fetch(`${API_BASE_URL}/users/${params.id}`, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
+        'Authorization': `Bearer ${session.apiToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -99,7 +99,7 @@ export async function DELETE(request, { params }) {
     const response = await fetch(`${API_BASE_URL}/users/${params.id}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
+        'Authorization': `Bearer ${session.apiToken}`,
         'Content-Type': 'application/json',
       },
     });

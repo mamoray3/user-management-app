@@ -12,12 +12,12 @@ async function getUsers(session, filter) {
     
     console.log('API_BASE_URL:', baseUrl);
     console.log('Fetching URL:', url);
-    console.log('Has accessToken:', !!session.accessToken);
-    console.log('Token preview:', session.accessToken?.substring(0, 50) + '...');
+    console.log('Has apiToken:', !!session.apiToken);
+    console.log('Token preview:', session.apiToken?.substring(0, 50) + '...');
     
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
+        'Authorization': `Bearer ${session.apiToken}`,
         'Content-Type': 'application/json',
       },
       cache: 'no-store',

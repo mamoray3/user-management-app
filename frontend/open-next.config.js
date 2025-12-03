@@ -4,6 +4,8 @@ const config = {
     override: {
       wrapper: "aws-lambda",
       converter: "aws-lambda-url",
+      // Use S3 cache without DynamoDB (simpler setup)
+      incrementalCache: "s3",
     },
   },
   // Configure image optimization

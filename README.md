@@ -1,243 +1,408 @@
 # User Management Application
 
-A serverless user management application built with Next.js and deployed on AWS using CloudFront, Lambda, API Gateway, and DynamoDB.
+A modern, serverless user management application with enterprise SSO, fine-grained S3 access control, and advanced identity federation capabilities. Built with Next.js, AWS Lambda, DynamoDB, and AWS Identity Center.
 
-## Architecture Overview
+## 🌟 Key Features
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                   Users                                      │
-└─────────────────────────────────────────┬───────────────────────────────────┘
-                                          │
-                                          ▼
-                              ┌───────────────────────┐
-                              │     CloudFront        │
-                              │  (CDN + HTTPS)        │
-                              └───────────┬───────────┘
-                                          │
-                    ┌─────────────────────┼─────────────────────┐
-                    │                     │                     │
-                    ▼                     ▼                     ▼
-          ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-          │   S3 Bucket     │   │  Lambda (SSR)   │   │  API Gateway    │
-          │ Static Assets   │   │   Next.js       │   │    (REST)       │
-          └─────────────────┘   └─────────────────┘   └────────┬────────┘
-                                                               │
-                                                    ┌──────────┼──────────┐
-                                                    │          │          │
-                                                    ▼          ▼          ▼
-                                            ┌──────────┐ ┌──────────┐ ┌──────────┐
-                                            │ Lambda   │ │ Lambda   │ │ DynamoDB │
-                                            │Authorizer│ │   API    │ │  Users   │
-                                            └──────────┘ └──────────┘ └──────────┘
-```
+- **Enterprise SSO**: Multi-layer authentication (Entra ID → AWS Identity Center → Cognito)
+- **Fine-Grained S3 Access**: S3 Access Grants with per-user folders
+- **IDC OIDC Token Exchange**: Preserves Identity Center identity through to S3
+- **User Management**: Full CRUD operations with approval workflow
+- **Role-Based Access Control**: Admin, Data Owner, Process Owner, Viewer roles
+- **Serverless Architecture**: Fully serverless on AWS with global CDN
+- **Modern Frontend**: Next.js 14 with SSR via Lambda@Edge
 
-## Features
-
-- **SSO Authentication**: AWS Identity Center SAML2 integration via NextAuth.js
-- **User Management CRUD**: Create, Read, Update, Delete users
-- **Role-Based Access Control**: Admin and User roles
-- **User Approval Workflow**: Admins can approve pending users
-- **Serverless Architecture**: Fully serverless on AWS
-- **SSR Support**: Server-side rendering with Next.js via Open-Next
-
-## Project Structure
+## 📐 Architecture Overview
 
 ```
-user-management-app/
-├── frontend/                 # Next.js application
-│   ├── src/
-│   │   ├── app/             # Next.js App Router pages
-│   │   ├── components/      # React components
-│   │   └── lib/             # Utilities and API client
-│   ├── scripts/             # Build and deploy scripts
-│   └── open-next.config.js  # Open-Next configuration
-├── backend/                  # Python Lambda functions
-│   └── handlers/            # Lambda handlers
-└── infra/                   # Terraform infrastructure
-    ├── main.tf
-    ├── cloudfront.tf
-    ├── lambda.tf
-    ├── api_gateway.tf
-    ├── dynamodb.tf
-    └── s3.tf
+┌──────────────────────────────────────────────────────────────┐
+│                    Authentication Flow                        │
+│                                                               │
+│  User → CloudFront → Cognito → IDC → Entra ID/Okta          │
+│                         ↓                                     │
+│                   IDC OIDC Token                             │
+│                         ↓                                     │
+│            STS AssumeRoleWithWebIdentity                     │
+│                         ↓                                     │
+│         AWS Credentials (IDC identity preserved)             │
+│                         ↓                                     │
+│              S3 Access Grants (per-user access)              │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-## Prerequisites
+### Components
+
+- **Frontend**: Next.js 14 (App Router) with SSR via CloudFront + Lambda@Edge
+- **Backend**: Python Lambda functions behind API Gateway
+- **Database**: DynamoDB with GSIs for efficient queries
+- **Storage**: S3 with Access Grants for fine-grained control
+- **Authentication**: Cognito + AWS Identity Center + External IdP
+- **CDN**: CloudFront with custom domain support
+- **Infrastructure**: Terraform for IaC
+
+## 🚀 Quick Start
+
+### Prerequisites
 
 - Node.js 18+ and npm
-- Python 3.11+
-- AWS CLI configured with appropriate credentials
+- Python 3.12+
+- AWS CLI configured
 - Terraform 1.0+
-- AWS Identity Center SAML application configured
+- AWS Identity Center configured with external IdP (Entra ID, Okta, etc.)
 
-## Quick Start
+### 1. Setup Guide
 
-### 1. Configure AWS Identity Center
+Follow the comprehensive setup guide:
 
-1. Create a SAML 2.0 application in AWS Identity Center
-2. Note down the following values:
-   - SAML Issuer URL
-   - SAML Entry Point URL
-   - Client ID and Client Secret
+📖 **[Quick Start: IDC OIDC Setup](./docs/QUICK_START_IDC_OIDC.md)**
 
-### 2. Setup Environment Variables
+This guide walks you through:
+1. Creating IDC SAML application
+2. Configuring attribute mappings
+3. Setting up Terraform
+4. Deploying infrastructure
+5. Testing the application
 
-```bash
-cd frontend
-cp .env.example .env
-# Edit .env with your configuration
-```
-
-### 3. Install Dependencies
+### 2. Deploy Infrastructure
 
 ```bash
-# Frontend
-cd frontend
-npm install
+cd infra/core
 
-# Backend (for local testing)
-cd ../backend
-pip install -r requirements.txt
-```
-
-### 4. Local Development
-
-```bash
-cd frontend
-npm run dev
-```
-
-### 5. Deploy Infrastructure
-
-```bash
-cd infra
-
-# Initialize Terraform
-terraform init
-
-# Configure variables
+# Copy and edit configuration
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with your values
 
-# Plan deployment
+# Initialize and deploy
+terraform init
 terraform plan
-
-# Apply infrastructure
 terraform apply
 ```
 
-### 6. Build and Deploy Application
+### 3. Local Development
 
 ```bash
 cd frontend
 
-# Build with Open-Next
-chmod +x scripts/build.sh scripts/deploy.sh
-./scripts/build.sh
+# Setup environment
+cp .env.example .env.local
+# Edit .env.local with your values
 
-# Deploy to AWS
-./scripts/deploy.sh
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
 ```
 
-## Environment Variables
+## 📚 Documentation
 
-### Frontend (.env)
+### Main Documentation
 
-| Variable             | Description                               |
-| -------------------- | ----------------------------------------- |
-| `NEXTAUTH_URL`       | Full URL of your application              |
-| `NEXTAUTH_SECRET`    | Secret for NextAuth.js session encryption |
-| `SAML_ISSUER`        | AWS Identity Center issuer URL            |
-| `SAML_ENTRY_POINT`   | SAML SSO endpoint URL                     |
-| `SAML_CLIENT_ID`     | SAML application client ID                |
-| `SAML_CLIENT_SECRET` | SAML application client secret            |
-| `API_BASE_URL`       | API Gateway URL                           |
+| Document | Description |
+|----------|-------------|
+| **[Documentation Index](./docs/README.md)** | Complete documentation catalog |
+| [Architecture](./docs/ARCHITECTURE.md) | System architecture and design |
+| [Deployment Guide](./docs/DEPLOYMENT_GUIDE.md) | How to deploy to AWS |
+| [Environment Variables](./docs/ENVIRONMENT_VARIABLES.md) | Configuration guide |
 
-### Backend (Lambda Environment)
+### Advanced Topics
 
-| Variable           | Description                             |
-| ------------------ | --------------------------------------- |
-| `USERS_TABLE_NAME` | DynamoDB table name                     |
-| `NEXTAUTH_SECRET`  | Secret for token validation             |
-| `ALLOWED_ISSUERS`  | Comma-separated list of allowed issuers |
+| Document | Description |
+|----------|-------------|
+| [IDC OIDC Token Exchange](./docs/IDC_OIDC_TOKEN_EXCHANGE.md) | Advanced identity federation |
+| [Troubleshooting](./docs/troubleshooting/) | Debug and verify guides |
 
-## API Endpoints
+## 🔑 Key Technologies
 
-| Method | Endpoint                | Description          | Auth     |
-| ------ | ----------------------- | -------------------- | -------- |
-| GET    | `/users`                | List all users       | Required |
-| GET    | `/users?status=pending` | List users by status | Required |
-| POST   | `/users`                | Create new user      | Admin    |
-| GET    | `/users/{id}`           | Get user by ID       | Required |
-| PUT    | `/users/{id}`           | Update user          | Admin    |
-| DELETE | `/users/{id}`           | Delete user          | Admin    |
-| POST   | `/users/{id}/approve`   | Approve pending user | Admin    |
-| GET    | `/health`               | Health check         | None     |
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| Frontend | Next.js 14 + React | Modern web framework with SSR |
+| Auth Client | NextAuth.js | Session management |
+| Styling | Tailwind CSS | Utility-first CSS framework |
+| Backend | Python 3.12 | Lambda functions |
+| API | AWS API Gateway | RESTful API endpoints |
+| Database | DynamoDB | NoSQL user data store |
+| Storage | S3 + Access Grants | File storage with fine-grained access |
+| CDN | CloudFront | Global content delivery |
+| Auth | Cognito + Identity Center | Multi-layer authentication |
+| IaC | Terraform | Infrastructure as code |
+| Monitoring | CloudWatch + X-Ray | Logs, metrics, and tracing |
 
-## User Schema
+## 🏗️ Project Structure
 
-```json
+```
+user-management-app/
+├── docs/                       # 📖 Documentation
+│   ├── README.md              # Documentation index
+│   ├── ARCHITECTURE.md        # System architecture
+│   ├── QUICK_START_IDC_OIDC.md # Setup guide
+│   ├── DEPLOYMENT_GUIDE.md    # Deployment procedures
+│   ├── ENVIRONMENT_VARIABLES.md # Configuration guide
+│   ├── troubleshooting/       # Debug guides
+│   └── archive/               # Historical docs
+│
+├── frontend/                   # Next.js Application
+│   ├── src/
+│   │   ├── app/               # App Router pages
+│   │   │   ├── api/           # API routes
+│   │   │   ├── login/         # Login page
+│   │   │   ├── users/         # User management
+│   │   │   └── files/         # File browser
+│   │   ├── components/        # React components
+│   │   ├── hooks/             # Custom React hooks
+│   │   └── lib/               # Utilities
+│   ├── scripts/               # Build and deploy scripts
+│   ├── .env.example           # Environment template
+│   └── package.json
+│
+├── backend/                    # Python Lambda Functions
+│   ├── handlers/              # Lambda function code
+│   ├── requirements.txt       # Python dependencies
+│   └── README.md
+│
+└── infra/                     # Terraform Infrastructure
+    ├── core/                  # Core infrastructure
+    │   ├── cognito.tf         # Cognito User Pool + SAML
+    │   ├── dynamodb.tf        # Users table
+    │   ├── s3.tf              # Static assets bucket
+    │   ├── s3_access_grants.tf # User data bucket + grants
+    │   ├── idc_oidc.tf        # OIDC provider + token exchange
+    │   ├── iam.tf             # IAM roles
+    │   ├── variables.tf       # Input variables
+    │   ├── outputs.tf         # Exported values
+    │   └── terraform.tfvars   # Configuration (gitignored)
+    └── app/                   # App deployment (planned)
+```
+
+## 🔐 Security Features
+
+- **Multi-Factor Authentication**: Enforced via external IdP
+- **End-to-End Encryption**: TLS 1.2+ for all communications
+- **Data Encryption at Rest**: S3 and DynamoDB server-side encryption
+- **Fine-Grained Access Control**: S3 Access Grants with DIRECTORY_USER/GROUP
+- **Identity Preservation**: IDC user identity tracked to S3 operations
+- **Audit Logging**: CloudTrail logs show actual IDC user, not generic role
+- **Security Headers**: Comprehensive HTTP security headers
+- **Network Security**: CloudFront WAF integration ready
+
+## 📊 API Endpoints
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/users` | List all users | Required |
+| GET | `/api/users/{id}` | Get user details | Required |
+| POST | `/api/users` | Create new user | Admin |
+| PUT | `/api/users/{id}` | Update user | Admin |
+| DELETE | `/api/users/{id}` | Delete user | Admin |
+| POST | `/api/users/{id}/approve` | Approve pending user | Admin |
+| GET | `/api/s3/credentials` | Get S3 credentials | Required |
+| GET | `/api/health` | Health check | None |
+
+## 💾 User Data Schema
+
+```typescript
 {
-  "id": "uuid",
-  "name": "string",
-  "email": "string",
-  "role": "admin | user",
-  "status": "pending | active | inactive",
-  "department": "string",
-  "phone": "string",
-  "createdAt": "ISO 8601 timestamp",
-  "updatedAt": "ISO 8601 timestamp",
-  "approvedBy": "string (email)",
-  "approvedAt": "ISO 8601 timestamp"
+  userId: string;           // Primary key (UUID)
+  email: string;            // GSI for lookups
+  firstName: string;
+  lastName: string;
+  role: 'admin' | 'data_owner' | 'process_owner' | 'viewer';
+  status: 'pending' | 'approved' | 'suspended';
+  createdAt: string;        // ISO8601 timestamp
+  updatedAt: string;
+  lastLogin?: string;
+  metadata?: {
+    department?: string;
+    location?: string;
+    customFields?: Record<string, any>;
+  };
 }
 ```
 
-## Security Features
+## 🎯 Advanced Features
 
-- **HTTPS Only**: All traffic encrypted via CloudFront
-- **SAML2 Authentication**: Enterprise SSO via AWS Identity Center
-- **JWT Token Validation**: API Gateway authorizer validates tokens
-- **Role-Based Access Control**: Admin-only operations protected
-- **DynamoDB Encryption**: Server-side encryption enabled
-- **S3 Bucket Protection**: No public access, OAC only
-- **Security Headers**: X-Frame-Options, X-Content-Type-Options, etc.
+### IDC OIDC Token Exchange
 
-## Monitoring
+**What it does**: Preserves AWS Identity Center user identity through to S3 Access Grants
 
-- **CloudWatch Logs**: All Lambda functions log to CloudWatch
-- **X-Ray Tracing**: Enabled for API Lambda function
-- **API Gateway Access Logs**: Request/response logging
+**Why it matters**:
+- ✅ Enables `DIRECTORY_USER` grants (per-user S3 folders)
+- ✅ Enables `DIRECTORY_GROUP` grants (group-based access)
+- ✅ CloudTrail shows actual IDC user, not generic IAM role
+- ✅ Simplified credential management
 
-## Cost Optimization
+**How it works**:
+1. User authenticates via IDC (gets IDC OIDC token)
+2. Token passed through SAML to Cognito
+3. Application extracts token from session
+4. STS `AssumeRoleWithWebIdentity` with IDC token
+5. Receives AWS credentials with IDC context
+6. S3 Access Grants recognizes IDC user
 
-- **Pay-per-request DynamoDB**: No provisioned capacity charges
-- **Lambda**: Pay only for execution time
-- **CloudFront PriceClass_100**: Uses only North America and Europe edge locations
+See [IDC OIDC Token Exchange](./docs/IDC_OIDC_TOKEN_EXCHANGE.md) for details.
 
-## Troubleshooting
+### S3 Access Grants
+
+**Structure**:
+```
+s3://user-data-bucket/
+├── users/
+│   ├── {idc-user-id-1}/    # Per-user private folder
+│   ├── {idc-user-id-2}/
+│   └── ...
+└── shared/                  # Shared read-only folder
+```
+
+**Grant Types**:
+- `DIRECTORY_USER`: IDC User ID → `/users/{user-id}/*` (READWRITE)
+- `DIRECTORY_GROUP`: IDC Admin Group → `/*` (full access)
+- `IAM`: Cognito role → `/shared/*` (READ)
+
+## 📈 Monitoring & Observability
+
+- **CloudWatch Logs**: All Lambda execution logs
+- **CloudWatch Metrics**: Custom metrics and dashboards
+- **X-Ray Tracing**: Distributed tracing enabled
+- **CloudFront Logs**: Access logs to S3
+- **API Gateway Logs**: Request/response logging
+- **DynamoDB Metrics**: Read/write capacity tracking
+
+## 💰 Cost Optimization
+
+### Free Tier Usage
+- Cognito: 50,000 MAUs free
+- Lambda: 1M requests/month free
+- API Gateway: 1M calls/month free
+- DynamoDB: 25 GB storage free
+
+### Cost Drivers
+1. CloudFront data transfer (largest cost)
+2. Lambda execution time
+3. DynamoDB capacity (on-demand)
+4. S3 storage and requests
+
+### Optimization Strategies
+- Aggressive CloudFront caching
+- DynamoDB single-table design
+- S3 Intelligent-Tiering for long-term storage
+- Right-sized Lambda memory allocation
+
+## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **Authentication Errors**
+**1. SAML Authentication Fails**
+- See [Debug SAML Guide](./docs/troubleshooting/debug-saml.md)
+- Verify IDC application configuration
+- Check attribute mappings (especially `accessToken`)
 
-   - Verify SAML configuration in AWS Identity Center
-   - Check NEXTAUTH_SECRET matches in frontend and authorizer
+**2. S3 Access Grants Not Working**
+- Verify `identity_center_arn` in `terraform.tfvars`
+- Check grant's `grantee_identifier` matches IDC User ID
+- Confirm using IDC OIDC method (not Cognito Identity Pool)
 
-2. **CORS Errors**
+**3. Environment Variables Not Set**
+- See [Environment Variables Guide](./docs/ENVIRONMENT_VARIABLES.md)
+- Check Lambda environment variables in AWS Console
+- For local dev, use `.env.local` not `.env`
 
-   - Ensure CloudFront domain is in API Gateway CORS origins
-   - Check API Gateway stage settings
+**4. Deployment Failures**
+- Review [Deployment Guide](./docs/DEPLOYMENT_GUIDE.md)
+- Check Terraform plan output carefully
+- Verify AWS credentials and permissions
 
-3. **Lambda Cold Starts**
+### Where to Get Help
 
-   - Consider enabling provisioned concurrency for production
-   - Use Lambda warmer function
+- **Setup Questions**: [Quick Start Guide](./docs/QUICK_START_IDC_OIDC.md)
+- **Architecture Questions**: [Architecture Docs](./docs/ARCHITECTURE.md)
+- **Debugging**: [Troubleshooting Guides](./docs/troubleshooting/)
+- **Configuration**: [Environment Variables](./docs/ENVIRONMENT_VARIABLES.md)
 
-4. **Build Failures**
-   - Ensure Node.js 18+ is installed
-   - Clear `.next` and `.open-next` directories
+## 🔄 Deployment Workflow
 
-## License
+```bash
+# 1. Update infrastructure configuration
+cd infra/core
+vim terraform.tfvars
 
-MIT License
+# 2. Apply infrastructure changes
+terraform plan
+terraform apply
+
+# 3. Build frontend
+cd ../../frontend
+npm run build
+
+# 4. Deploy application
+./scripts/deploy.sh
+
+# 5. Verify deployment
+curl https://your-domain.com/api/health
+```
+
+## 🧪 Testing
+
+### Local Testing
+```bash
+# Run frontend
+cd frontend
+npm run dev
+
+# Test authentication flow
+# Test user management
+# Test file browser
+```
+
+### Integration Testing
+- Verify SAML authentication
+- Test S3 credential exchange
+- Validate S3 Access Grants
+- Check user approval workflow
+
+## 📝 Environment Configuration
+
+### Local Development (`.env.local`)
+```bash
+# NextAuth
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-here
+
+# Cognito
+COGNITO_CLIENT_ID=xxx
+COGNITO_CLIENT_SECRET=xxx
+COGNITO_ISSUER=https://cognito-idp.us-east-1.amazonaws.com/xxx
+
+# IDC OIDC Token Exchange
+IDC_TOKEN_EXCHANGE_ROLE_ARN=arn:aws:iam::xxx:role/xxx
+
+# S3 Access
+S3_USER_DATA_BUCKET=xxx
+S3_ACCESS_GRANTS_INSTANCE_ARN=arn:aws:s3:xxx
+AWS_REGION=us-east-1
+```
+
+### AWS Deployment (Terraform)
+See [Environment Variables Guide](./docs/ENVIRONMENT_VARIABLES.md) for complete reference.
+
+## 🤝 Contributing
+
+1. Read the [Architecture Documentation](./docs/ARCHITECTURE.md)
+2. Set up local development environment
+3. Make changes and test locally
+4. Update documentation as needed
+5. Submit pull request
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+## 🔗 Quick Links
+
+- [📖 Full Documentation](./docs/README.md)
+- [🏗️ Architecture Guide](./docs/ARCHITECTURE.md)
+- [🚀 Quick Start](./docs/QUICK_START_IDC_OIDC.md)
+- [🐛 Troubleshooting](./docs/troubleshooting/)
+
+---
+
+**Need help getting started?** Check out the [Quick Start Guide](./docs/QUICK_START_IDC_OIDC.md) for step-by-step instructions.

@@ -28,6 +28,13 @@ export default async function HomePage() {
             </div>
           </Link>
 
+          <Link href="/files" className="block">
+            <div className="p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:shadow-md transition-all">
+              <h3 className="font-semibold text-gray-900 mb-2">My Files</h3>
+              <p className="text-sm text-gray-500">Browse your S3 files via Access Grants</p>
+            </div>
+          </Link>
+
           {session.user?.role === 'admin' && (
             <>
               <Link href="/users/new" className="block">
